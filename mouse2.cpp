@@ -64,9 +64,10 @@ vector<point2D> poly;
 
 point2D guardPoint;
 
-vector<vector<point2D> > obstacles;
-point2D startPoint;
-point2D endPoint;
+vector<point2D> currentPolygon;
+vector<vector<point2D> > obstacles; //all the obstacles in the space
+point2D startPoint;                 //starting point
+point2D endPoint;                   //endpoint
 
 double currentDirectionX = 1;
 double currentDirectionY = 1;
@@ -80,14 +81,17 @@ double mouse_x=-10, mouse_y=-10;
 //initialized to a point outside the window
 
 //when this is 1, then clicking the mouse results in those points being stored in poly
-int poly_init_mode = 0; 
+int poly_init_mode = 0;
+int newpoly_init_mode = 0;
+int newpoly_done_mode = 0;
+
 int start_init_mode = 0;
-int goal_init_mode = 0;
+int finish_init_mode = 0;
 
 void draw_circle(double x, double y){
   if(start_init_mode == 1) {
     glColor3fv(green);
-  } else if(goal_init_mode == 1) {
+  } else if(finish_init_mode == 1) {
     glColor3fv(red);
   } else {
     glColor3fv(blue);  
@@ -143,16 +147,19 @@ void mousepress(int button, int state, int x, int y) {
     printf("mouse click at (x=%d, y=%d)\n", (int)mouse_x, (int)mouse_y);
 
     if (poly_init_mode == 1) {
-
       triangulate.clear();
       visiblePolygonPoints.clear();
-
-      point2D p = {mouse_x, mouse_y}; 
-      poly.push_back(p);
+    } else if(newpoly_init_mode == 1) {
+        point2D p = {mouse_x,mouse_y};
+        currentPolygon.push_back(p);
+    } else if(newpoly_done_mode == 1) {
+        cout<<"Pushing Onto Obstacles\n";
+        obstacles.push_back(currentPolygon);
+        currentPolygon.clear();
     } else if(start_init_mode == 1) {
       startPoint.x = mouse_x;
       startPoint.y = mouse_y;
-    } else if(goal_init_mode == 1) {
+    } else if(finish_init_mode == 1) {
       endPoint.x = mouse_x;
       endPoint.y = mouse_y;
     }
@@ -199,8 +206,9 @@ void initialize_polygon() {
     p.y = WINDOWSIZE/2 + rad * sin (i * step); 
 
     //insert the segment in the array of segments 
-    poly.push_back (p); 
+    poly.push_back(p); 
   } //for i
+  obstacles.push_back(poly);
 }
 
 /* ************************************************** */
@@ -254,26 +262,48 @@ int main(int argc, char** argv) {
 
 /* ****************************** */
 /* draw the polygon */
-void draw_polygon(vector<point2D> poly){
+void draw_polygons(vector<vector<point2D> > obstacles) {
 
-  if (poly.size() == 0) return; 
+  if (obstacles.size() == 0) return; 
 
   glColor3fv(yellow); 
 
-  int i;
-  for (i=0; i<poly.size()-1; i++) {
+  for(int j=0; j<obstacles.size(); j++) {
+    vector<point2D> currentPolygon = obstacles[j];
 
+    for (int i=0; i<currentPolygon.size()-1; i++) {
+      glBegin(GL_LINES);
+      glVertex2f(currentPolygon[i].x, currentPolygon[i].y); 
+      glVertex2f(currentPolygon[i+1].x, currentPolygon[i+1].y);
+      glEnd();
+    }
+    //render last segment between last point and forst point 
+    int last=currentPolygon.size()-1; 
     glBegin(GL_LINES);
-    glVertex2f(poly[i].x, poly[i].y); 
-    glVertex2f(poly[i+1].x, poly[i+1].y);
+    glVertex2f(currentPolygon[last].x, currentPolygon[last].y); 
+    glVertex2f(currentPolygon[0].x, currentPolygon[0].y);
     glEnd();
   }
-  //render last segment between last point and forst point 
-  int last=poly.size()-1; 
+}
+
+void draw_current_polygon(vector<point2D> currentPolygon) {
+  if(currentPolygon.size() == 0) return;
+
+  glColor3fv(yellow);
+
+  for (int i=0; i<currentPolygon.size()-1; i++) {
     glBegin(GL_LINES);
-    glVertex2f(poly[last].x, poly[last].y); 
-    glVertex2f(poly[0].x, poly[0].y);
+    glVertex2f(currentPolygon[i].x, currentPolygon[i].y); 
+    glVertex2f(currentPolygon[i+1].x, currentPolygon[i+1].y);
     glEnd();
+  }
+  
+  //render last segment between last point and forst point 
+  int last=currentPolygon.size()-1; 
+  glBegin(GL_LINES);
+  glVertex2f(currentPolygon[last].x, currentPolygon[last].y); 
+  glVertex2f(currentPolygon[0].x, currentPolygon[0].y);
+  glEnd();
 }
 
 void draw_start() {
@@ -349,7 +379,9 @@ void display(void) {
 
   render_visible_polygon();
 
-  draw_polygon(poly);
+  cout<<"Obstacles Size: "<<obstacles.size()<<endl;
+  draw_polygons(obstacles);
+  draw_current_polygon(currentPolygon);
   draw_start();
   draw_goal();
   
@@ -372,28 +404,45 @@ void keypress(unsigned char key, int x, int y) {
     //want, and press 'e' when you're done. the points will be saved
     //in global 'poly'
     
-  case 's': 
+  case 'i':
     //start re-initializeing polygon 
     poly.clear();
+    obstacles.clear();
     events.clear();
     visiblePolygonPoints.clear();
     lines.clear();
     triangulate.clear();
-    mouse_x = mouse_y=0; 
-    goal_init_mode = 0;
+
+    mouse_x = mouse_y=0;
+
+    finish_init_mode = 0;
     start_init_mode = 0;
-    poly_init_mode = 1; 
+    poly_init_mode = 1;
+
     glutPostRedisplay();
     break; 
+  case 'p':
+    poly_init_mode = 0;
+    newpoly_init_mode = 1;
+    glutPostRedisplay();
+    break;
+  case 'o':
+    poly_init_mode = 0;
+    newpoly_init_mode = 0;
+    newpoly_done_mode = 1;
+    glutPostRedisplay();
+    break;
   case 'e':
     poly_init_mode = 0;
-    goal_init_mode = 0;
+    newpoly_init_mode = 0;
+    newpoly_done_mode = 0;
+    finish_init_mode = 0;
     start_init_mode = 0;
     glutPostRedisplay();
     break;
   case 'm':
     moveGuard = true;
-    goal_init_mode = 0;
+    finish_init_mode = 0;
     start_init_mode = 0;
     glutPostRedisplay();
     break;
@@ -401,14 +450,14 @@ void keypress(unsigned char key, int x, int y) {
     moveGuard = false;
     glutPostRedisplay();
     break;
-  case 'b': //begin point
+  case 's': //begin point
     start_init_mode = 1;
     poly_init_mode = 0;
-    goal_init_mode = 0;
+    finish_init_mode = 0;
     glutPostRedisplay();
     break;
-  case 'g': //goal point
-    goal_init_mode = 1;
+  case 'f': //goal point
+    finish_init_mode = 1;
     poly_init_mode = 0;
     start_init_mode = 0;
     glutPostRedisplay();
