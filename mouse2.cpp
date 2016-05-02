@@ -64,6 +64,10 @@ vector<point2D> poly;
 
 point2D guardPoint;
 
+vector<vector<point2D> > obstacles;
+point2D startPoint;
+point2D endPoint;
+
 double currentDirectionX = 1;
 double currentDirectionY = 1;
 
@@ -77,9 +81,17 @@ double mouse_x=-10, mouse_y=-10;
 
 //when this is 1, then clicking the mouse results in those points being stored in poly
 int poly_init_mode = 0; 
+int start_init_mode = 0;
+int goal_init_mode = 0;
 
 void draw_circle(double x, double y){
-  glColor3fv(blue);   
+  if(start_init_mode == 1) {
+    glColor3fv(green);
+  } else if(goal_init_mode == 1) {
+    glColor3fv(red);
+  } else {
+    glColor3fv(blue);  
+  } 
   int precision = 100;
   double r = 4; 
   double theta = 0;
@@ -137,8 +149,13 @@ void mousepress(int button, int state, int x, int y) {
 
       point2D p = {mouse_x, mouse_y}; 
       poly.push_back(p);
+    } else if(start_init_mode == 1) {
+      startPoint.x = mouse_x;
+      startPoint.y = mouse_y;
+    } else if(goal_init_mode == 1) {
+      endPoint.x = mouse_x;
+      endPoint.y = mouse_y;
     }
-
     else {
       guardPoint.x = mouse_x;
       guardPoint.y = mouse_y;
@@ -259,6 +276,32 @@ void draw_polygon(vector<point2D> poly){
     glEnd();
 }
 
+void draw_start() {
+  glColor3fv(green); 
+  int precision = 100;
+  double r = 4; 
+  double theta = 0;
+  glBegin(GL_POLYGON);
+  for(int i = 0; i < precision; i++){
+    theta = i * 2 * M_PI/precision;
+    glVertex2f(startPoint.x + r*cos(theta), startPoint.y + r*sin(theta));
+  }
+  glEnd();
+}
+
+void draw_goal() {
+  glColor3fv(red); 
+  int precision = 100;
+  double r = 4; 
+  double theta = 0;
+  glBegin(GL_POLYGON);
+  for(int i = 0; i < precision; i++){
+    theta = i * 2 * M_PI/precision;
+    glVertex2f(endPoint.x + r*cos(theta), endPoint.y + r*sin(theta));
+  }
+  glEnd();
+}
+
 void render_visible_polygon() {
 
   glColor3fv(red);
@@ -307,6 +350,8 @@ void display(void) {
   render_visible_polygon();
 
   draw_polygon(poly);
+  draw_start();
+  draw_goal();
   
   //draw a circle where the mouse was last clicked. Note that this
   //point is stored as a global variable and is modified by the mouse
@@ -323,7 +368,6 @@ void keypress(unsigned char key, int x, int y) {
   case 'q':
     exit(0);
     break;
-
     //expected behaviour: press 's', then click on the points you
     //want, and press 'e' when you're done. the points will be saved
     //in global 'poly'
@@ -336,28 +380,40 @@ void keypress(unsigned char key, int x, int y) {
     lines.clear();
     triangulate.clear();
     mouse_x = mouse_y=0; 
+    goal_init_mode = 0;
+    start_init_mode = 0;
     poly_init_mode = 1; 
     glutPostRedisplay();
     break; 
-    
   case 'e':
-    poly_init_mode = 0; 
-    glutPostRedisplay();
-    break;  
-
-  case 'm':
-    moveGuard = true;
+    poly_init_mode = 0;
+    goal_init_mode = 0;
+    start_init_mode = 0;
     glutPostRedisplay();
     break;
-
-
+  case 'm':
+    moveGuard = true;
+    goal_init_mode = 0;
+    start_init_mode = 0;
+    glutPostRedisplay();
+    break;
   case 'n':
     moveGuard = false;
     glutPostRedisplay();
     break;
-
+  case 'b': //begin point
+    start_init_mode = 1;
+    poly_init_mode = 0;
+    goal_init_mode = 0;
+    glutPostRedisplay();
+    break;
+  case 'g': //goal point
+    goal_init_mode = 1;
+    poly_init_mode = 0;
+    start_init_mode = 0;
+    glutPostRedisplay();
+    break;
   }
-
 }
 
 /* Handler for window re-size event. Called back when the window first appears and
