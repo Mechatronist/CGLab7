@@ -41,7 +41,7 @@ geom.o: geom.cpp geom.h
 	$(CC) -c $(INCLUDEPATH) $(CFLAGS) geom.cpp -o $@
 
 clean::	
+	rm main
 	rm *.o
-	rm mouse1 mouse2
 
 
